@@ -13,26 +13,24 @@
 
 namespace video_capture_rviz_plugins
 {
+
+const size_t SCREEN_WIDTH = 1920;
+const size_t SCREEN_HEIGHT = 1080;
+
 VideoCaptureTool::VideoCaptureTool()
 : Tool()
 {
   shortcut_key_ = 'r';
-//   file_name_property_ = new rviz::StringProperty(
-//     "file_name", "output.mp4",
-//     "file_name", this, SLOT(updateFileName()));
   width_property_ = new rviz_common::properties::IntProperty(
-    "width", 1920,
+    "width", 960,
     "Width of video in pixels", getPropertyContainer());
-  height_property_ = new rviz_common::properties::IntProperty(
-    "height", 1080,
-    "Height of video in pixels", getPropertyContainer());
 
   tex_ = Ogre::TextureManager::getSingleton().createManual(
     "CaptureRenderTarget",
     Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
     Ogre::TextureType::TEX_TYPE_2D,
-    width_property_->getInt(),
-    height_property_->getInt(),
+    SCREEN_WIDTH,
+    SCREEN_HEIGHT,
     3,
     0,
     Ogre::PixelFormat::PF_R8G8B8,
@@ -45,11 +43,17 @@ VideoCaptureTool::~VideoCaptureTool()
 
 void VideoCaptureTool::activate()
 {
+  auto w = width_property_->getInt();
+  auto camera = context_->getViewManager()->getCurrent()->getCamera();
+  double aspect_ratio = camera->getAspectRatio();
+  auto width_screen_ratio = static_cast<double>(w) / static_cast<double>(SCREEN_WIDTH);
+  video_height_ = static_cast<size_t>(static_cast<double>(w) / aspect_ratio);
+  auto height_screen_ratio = static_cast<double>(video_height_) / static_cast<double>(SCREEN_HEIGHT);
+
   Ogre::RenderTexture * renderTexture = tex_->getBuffer()->getRenderTarget();
   if (renderTexture->getNumViewports() == 0) {
-    auto viewport = renderTexture->addViewport(
-      context_->getViewManager()->getCurrent()->getCamera());
-    viewport = renderTexture->getViewport(0);
+    renderTexture->addViewport(camera, 0, 0.0, 0.0, width_screen_ratio, height_screen_ratio);
+    auto viewport = renderTexture->getViewport(0);
     viewport->setClearEveryFrame(true);
 
     Ogre::ColourValue clear_color;
@@ -60,10 +64,7 @@ void VideoCaptureTool::activate()
     viewport->setBackgroundColour(clear_color);
     viewport->setOverlaysEnabled(false);
   }
-
-  writer_.open(
-    "output.mp4", cv::VideoWriter::fourcc('h', 'v', 'c', '1'), 30.0,
-    cv::Size(width_property_->getInt(), height_property_->getInt()));
+  writer_.open("output.mp4", cv::VideoWriter::fourcc('h', 'v', 'c', '1'), 30.0, cv::Size(w, video_height_));
 }
 
 void VideoCaptureTool::deactivate()
@@ -73,37 +74,17 @@ void VideoCaptureTool::deactivate()
 
 void VideoCaptureTool::update(float, float)
 {
-  // rviz_common::RenderPanel * panel = context_->getViewManager()->getRenderPanel();
-  // QPixmap screenshot =
-  //   QGuiApplication::primaryScreen()->grabWindow(panel->winId());
-  // QImage src = screenshot.toImage().convertToFormat(QImage::Format_RGB888);
-
-  int w = 1920;
-  int h = 1080;
+  int w = width_property_->getInt();
 
   tex_->getBuffer()->getRenderTarget()->update();
   Ogre::HardwarePixelBufferSharedPtr buffer = tex_->getBuffer(0, 0);
-  cv::Mat out_image(h, w, CV_8UC3);
+  cv::Mat out_image(video_height_, w, CV_8UC3);
 
   buffer->lock(Ogre::HardwareBuffer::HBL_READ_ONLY);
   const Ogre::PixelBox & pb = buffer->getCurrentLock();
-  // Obtain a pointer to the texture's buffer
+  // interpret buffer as OpenCV image matrix
   uint8_t * data = static_cast<uint8_t *>(pb.data);
-  // Copy the data
-  // memcpy(
-  //   static_cast<uint8_t *>(pb.data),
-  //   &image_ptr_->data[0],
-  //   sizeof(uint8_t) * image_ptr_->data.size()
-  // );
-  cv::Mat rendered_image(h, w, CV_8UC3, data);
-  // if (image.size().width != width_property_->getInt() ||
-  //   image.size().height != height_property_->getInt())
-  // {
-  //   cv::resize(
-  //     image, image, cv::Size(
-  //       width_property_->getInt(),
-  //       height_property_->getInt()), 0, 0, cv::INTER_LINEAR);
-  // }
+  cv::Mat rendered_image(video_height_, w, CV_8UC3, data, SCREEN_WIDTH * 3);
   cv::cvtColor(rendered_image, out_image, cv::COLOR_RGB2BGR);
   buffer->unlock();
   writer_ << out_image;
