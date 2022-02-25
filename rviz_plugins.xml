@@ -1,0 +1,7 @@
+<library path="video_capture_rviz_plugins">
+    <class name="video_capture_rviz_plugins/VideoCaptureTool" type="video_capture_rviz_plugins::VideoCaptureTool" base_class_type="rviz_common::Tool">
+        <description>
+            Tool to capture the render panel.
+        </description>
+    </class>
+</library>
