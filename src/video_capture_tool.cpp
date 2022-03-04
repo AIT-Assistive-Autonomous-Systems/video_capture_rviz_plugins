@@ -85,9 +85,8 @@ void VideoCaptureTool::update(float, float)
   // interpret buffer as OpenCV image matrix
   uint8_t * data = static_cast<uint8_t *>(pb.data);
   cv::Mat rendered_image(video_height_, w, CV_8UC3, data, SCREEN_WIDTH * 3);
-  cv::cvtColor(rendered_image, out_image, cv::COLOR_RGB2BGR);
+  writer_ << rendered_image;
   buffer->unlock();
-  writer_ << out_image;
 }
 } // namespace video_capture_rviz_plugins
 
