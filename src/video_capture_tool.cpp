@@ -29,7 +29,12 @@ VideoCaptureTool::VideoCaptureTool()
 
   clear_color_property_ = new rviz_common::properties::ColorProperty(
     "Clear Color", QColor(48, 48, 48),
-    "Clear color for the video background.",
+    "Clear color for the video background",
+    getPropertyContainer());
+
+  fourcc_property_ = new rviz_common::properties::StringProperty(
+    "FourCC", "vp09",
+    "FourCC of the desired codec",
     getPropertyContainer());
 
   tex_ = Ogre::TextureManager::getSingleton().createManual(
@@ -75,10 +80,12 @@ void VideoCaptureTool::activate()
   std::stringstream output_file;
   output_file << "rviz_render_capture_";
   output_file << std::put_time(&tm, "%Y-%m-%d_%H-%M-%S");
-  output_file << ".mp4";
+  output_file << ".webm";
+
+  auto fourcc = fourcc_property_->getStdString();
   writer_.open(
     output_file.str(),
-    cv::VideoWriter::fourcc('h', 'v', 'c', '1'), 30.0,
+    cv::VideoWriter::fourcc(fourcc[0], fourcc[1], fourcc[2], fourcc[3]), 30.0,
     cv::Size(w, video_height_));
 }
 
