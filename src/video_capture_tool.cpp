@@ -10,6 +10,7 @@
 #include <QGuiApplication>
 #include <opencv2/imgproc.hpp>
 #include <Ogre.h>
+#include <iomanip>
 
 
 namespace video_capture_rviz_plugins
@@ -68,8 +69,16 @@ void VideoCaptureTool::activate()
     viewport->setBackgroundColour(ogre_clear_color);
     viewport->setOverlaysEnabled(false);
   }
+  auto t = std::time(nullptr);
+  auto tm = *std::localtime(&t);
+
+  std::stringstream output_file;
+  output_file << "rviz_render_capture_";
+  output_file << std::put_time(&tm, "%Y-%m-%d_%H-%M-%S");
+  output_file << ".mp4";
   writer_.open(
-    "output.mp4", cv::VideoWriter::fourcc('h', 'v', 'c', '1'), 30.0,
+    output_file.str(),
+    cv::VideoWriter::fourcc('h', 'v', 'c', '1'), 30.0,
     cv::Size(w, video_height_));
 }
 
