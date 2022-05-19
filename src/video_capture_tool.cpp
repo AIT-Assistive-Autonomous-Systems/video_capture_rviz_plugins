@@ -4,6 +4,7 @@
 #include <rviz_common/display_group.hpp>
 #include <rviz_common/display.hpp>
 #include <rviz_common/render_panel.hpp>
+#include <rviz_common/properties/parse_color.hpp>
 #include <QImage>
 #include <QScreen>
 #include <QGuiApplication>
@@ -24,6 +25,11 @@ VideoCaptureTool::VideoCaptureTool()
   width_property_ = new rviz_common::properties::IntProperty(
     "width", 960,
     "Width of video in pixels", getPropertyContainer());
+
+  clear_color_property_ = new rviz_common::properties::ColorProperty(
+    "Clear Color", QColor(48, 48, 48),
+    "Clear color for the video background.",
+    getPropertyContainer());
 
   tex_ = Ogre::TextureManager::getSingleton().createManual(
     "CaptureRenderTarget",
@@ -48,7 +54,8 @@ void VideoCaptureTool::activate()
   double aspect_ratio = camera->getAspectRatio();
   auto width_screen_ratio = static_cast<double>(w) / static_cast<double>(SCREEN_WIDTH);
   video_height_ = static_cast<size_t>(static_cast<double>(w) / aspect_ratio);
-  auto height_screen_ratio = static_cast<double>(video_height_) / static_cast<double>(SCREEN_HEIGHT);
+  auto height_screen_ratio = static_cast<double>(video_height_) /
+    static_cast<double>(SCREEN_HEIGHT);
 
   Ogre::RenderTexture * renderTexture = tex_->getBuffer()->getRenderTarget();
   if (renderTexture->getNumViewports() == 0) {
@@ -56,15 +63,14 @@ void VideoCaptureTool::activate()
     auto viewport = renderTexture->getViewport(0);
     viewport->setClearEveryFrame(true);
 
-    Ogre::ColourValue clear_color;
-    clear_color.r = 48.0 / 255.0;
-    clear_color.g = 48.0 / 255.0;
-    clear_color.b = 48.0 / 255.0;
-    clear_color.a = 1.0;
-    viewport->setBackgroundColour(clear_color);
+    auto ogre_clear_color =
+      rviz_common::properties::qtToOgre(clear_color_property_->getColor());
+    viewport->setBackgroundColour(ogre_clear_color);
     viewport->setOverlaysEnabled(false);
   }
-  writer_.open("output.mp4", cv::VideoWriter::fourcc('h', 'v', 'c', '1'), 30.0, cv::Size(w, video_height_));
+  writer_.open(
+    "output.mp4", cv::VideoWriter::fourcc('h', 'v', 'c', '1'), 30.0,
+    cv::Size(w, video_height_));
 }
 
 void VideoCaptureTool::deactivate()
